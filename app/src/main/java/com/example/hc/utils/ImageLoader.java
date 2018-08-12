@@ -80,4 +80,6 @@ public class ImageLoader {
 
         return bitmap;
     }
+
+    //测试commit到github
 }
