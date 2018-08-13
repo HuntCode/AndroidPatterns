@@ -4,7 +4,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.LruCache;
 import android.widget.ImageView;
 
 import java.net.HttpURLConnection;
@@ -16,29 +15,22 @@ import java.util.concurrent.Executors;
  * 图片加载器
  */
 public class ImageLoader {
-    LruCache<String, Bitmap> mImageCache;
+    //将缓存独立成类，实现单一职责
+    ImageCache mImageCache = new ImageCache();
+
     ExecutorService mExeService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
     Handler mUiHandler = new Handler(Looper.getMainLooper());
 
-    public ImageLoader() {
-        initImageCache();
-    }
-
-    private void initImageCache() {
-        final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
-
-        final int cacheSize = maxMemory / 4;
-
-        mImageCache = new LruCache<String, Bitmap>(cacheSize) {
-            @Override
-            protected int sizeOf(String key, Bitmap bitmap) {
-                return bitmap.getRowBytes() * bitmap.getHeight() / 1024;
-            }
-        };
-    }
 
     public void displayImage(final String url, final ImageView imageView) {
+        Bitmap bitmap = mImageCache.get(url);
+        if (bitmap != null) {
+            imageView.setImageBitmap(bitmap);
+            return;
+        }
+
+        //缓存中没有，则下载
         imageView.setTag(url);
         mExeService.submit(new Runnable() {
             @Override
