@@ -18,16 +18,33 @@ public class ImageLoader {
     //将缓存独立成类，实现单一职责
     ImageCache mImageCache = new ImageCache();
 
+    //SD卡缓存
+    DiskCache mDiskCache = new DiskCache();
+
+    //双缓存
+    DoubleCache mDoubleCache = new DoubleCache();
+
+    boolean isUsedDiskCache = false;
+
+    boolean isUseDoubleCache = false;
+
     ExecutorService mExeService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
     Handler mUiHandler = new Handler(Looper.getMainLooper());
 
 
     public void displayImage(final String url, final ImageView imageView) {
-        Bitmap bitmap = mImageCache.get(url);
+        Bitmap bitmap = null;
+        if (isUseDoubleCache) {
+            bitmap = mDoubleCache.get(url);
+        } else if (isUsedDiskCache) {
+            bitmap = mDiskCache.get(url);
+        } else {
+            bitmap = mImageCache.get(url);
+        }
+
         if (bitmap != null) {
             imageView.setImageBitmap(bitmap);
-            return;
         }
 
         //缓存中没有，则下载
@@ -47,6 +64,14 @@ public class ImageLoader {
 
             }
         });
+    }
+
+    public void useDiskCache(boolean useDiskCache) {
+        isUsedDiskCache = useDiskCache;
+    }
+
+    public void setUseDoubleCache(boolean useDoubleCache) {
+        isUseDoubleCache = useDoubleCache;
     }
 
     private void updateImageView(final ImageView imageView, final Bitmap bmp) {
