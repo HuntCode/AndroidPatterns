@@ -16,62 +16,47 @@ import java.util.concurrent.Executors;
  */
 public class ImageLoader {
     //将缓存独立成类，实现单一职责
-    ImageCache mImageCache = new ImageCache();
+    ImageCache mImageCache = new MemoryCache();
 
-    //SD卡缓存
-    DiskCache mDiskCache = new DiskCache();
-
-    //双缓存
-    DoubleCache mDoubleCache = new DoubleCache();
-
-    boolean isUsedDiskCache = false;
-
-    boolean isUseDoubleCache = false;
-
+    //线程池
     ExecutorService mExeService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
     Handler mUiHandler = new Handler(Looper.getMainLooper());
 
 
-    public void displayImage(final String url, final ImageView imageView) {
-        Bitmap bitmap = null;
-        if (isUseDoubleCache) {
-            bitmap = mDoubleCache.get(url);
-        } else if (isUsedDiskCache) {
-            bitmap = mDiskCache.get(url);
-        } else {
-            bitmap = mImageCache.get(url);
-        }
+    public void setImageCache(ImageCache cache) {
+        mImageCache = cache;
+    }
+
+    public void displayImage(final String imageUrl, final ImageView imageView) {
+        Bitmap bitmap = mImageCache.get(imageUrl);
 
         if (bitmap != null) {
             imageView.setImageBitmap(bitmap);
         }
 
         //缓存中没有，则下载
-        imageView.setTag(url);
+        submitLoadReqest(imageUrl, imageView);
+
+    }
+
+    private void submitLoadReqest(final String imageUrl, final ImageView imageView){
+        imageView.setTag(imageUrl);
         mExeService.submit(new Runnable() {
             @Override
             public void run() {
-                Bitmap bitmap = downloadImage(url);
+                Bitmap bitmap = downloadImage(imageUrl);
                 if (bitmap == null) {
                     return;
                 }
 
-                if (imageView.getTag().equals(url)) {
+                if (imageView.getTag().equals(imageUrl)) {
                     updateImageView(imageView, bitmap);
                 }
-                mImageCache.put(url, bitmap);
+                mImageCache.put(imageUrl, bitmap);
 
             }
         });
-    }
-
-    public void useDiskCache(boolean useDiskCache) {
-        isUsedDiskCache = useDiskCache;
-    }
-
-    public void setUseDoubleCache(boolean useDoubleCache) {
-        isUseDoubleCache = useDoubleCache;
     }
 
     private void updateImageView(final ImageView imageView, final Bitmap bmp) {
@@ -97,6 +82,4 @@ public class ImageLoader {
 
         return bitmap;
     }
-
-    //测试commit到github
 }

@@ -2,8 +2,8 @@ package com.example.hc.utils;
 
 import android.graphics.Bitmap;
 
-public class DoubleCache {
-    ImageCache mMemoryCache = new ImageCache();
+public class DoubleCache implements ImageCache{
+    ImageCache mMemoryCache = new MemoryCache();
     DiskCache mDiskCache = new DiskCache();
 
     public Bitmap get(String url){

@@ -7,7 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class DiskCache {
+public class DiskCache implements ImageCache{
     static String cacheDir = "sdcard/cache/";
 
     public Bitmap get(String url) {
