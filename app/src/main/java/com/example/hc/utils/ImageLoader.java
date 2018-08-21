@@ -8,6 +8,7 @@ import android.widget.ImageView;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.SimpleTimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -15,9 +16,65 @@ import java.util.concurrent.Executors;
  * 图片加载器
  */
 public class ImageLoader {
-    //将缓存独立成类，实现单一职责
-    ImageCache mImageCache = new MemoryCache();
+    private static ImageLoader sInstance;
 
+    //网络请求队列
+    private RequestQueue mImageQueue;
+
+    private volatile BitmapCache mCache = new MemoryCache();
+
+    private ImageLoaderConfig mConfig;
+
+    private ImageLoader() {
+    }
+
+    //DCL方式单例
+    public static ImageLoader getInstance() {
+        if (sInstance == null) {
+            synchronized (ImageLoader.class) {
+                if (sInstance == null) {
+                    sInstance = new ImageLoader();
+                }
+            }
+        }
+
+        return sInstance;
+    }
+
+    public void init(ImageLoaderConfig config) {
+        mConfig = config;
+        mCache = mConfig.bigmapCache;
+        checkConfig();
+        mImageQueue = new RequestQueue(mConfig.threadCount);
+        mImageQueue.start();
+    }
+
+    //TODO:省略的代码
+
+    public void displayImage(ImageView imageView, String url) {
+        displayImage(imageView, url, null, null);
+    }
+
+    public void displayImage(ImageView imageView, String url, ImageListener listener) {
+        displayImage(imageView, url, null, listener);
+    }
+
+    public void displayImage(final ImageView imageView, final String url, final DisplayConfig config, final ImageListener listener) {
+        BitmapRequest request = new BitmapRequest(imageView, url, config, listener);
+        request.displayConfig = request.displayConfig != null ? request.displayConfig : mConfig.displayConfig;
+
+        mImageQueue.addRequest(request)
+    }
+
+    public void stop() {
+        mImageQueue.stop();
+    }
+
+    public static interface ImageListener {
+        public void onComplete(ImageView imageView, Bitmap bitmap, String url);
+    }
+
+    //TODO:下面代码要修改，上面代码是单例的使用形式
     //线程池
     ExecutorService mExeService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
@@ -40,7 +97,7 @@ public class ImageLoader {
 
     }
 
-    private void submitLoadReqest(final String imageUrl, final ImageView imageView){
+    private void submitLoadReqest(final String imageUrl, final ImageView imageView) {
         imageView.setTag(imageUrl);
         mExeService.submit(new Runnable() {
             @Override
@@ -82,4 +139,5 @@ public class ImageLoader {
 
         return bitmap;
     }
+
 }
