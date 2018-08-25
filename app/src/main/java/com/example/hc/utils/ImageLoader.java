@@ -8,7 +8,6 @@ import android.widget.ImageView;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.SimpleTimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -16,12 +15,13 @@ import java.util.concurrent.Executors;
  * 图片加载器
  */
 public class ImageLoader {
-    private static ImageLoader sInstance;
+    //volatile用于解决DLC失效问题
+    private volatile static ImageLoader sInstance;
 
     //网络请求队列
     private RequestQueue mImageQueue;
 
-    private volatile BitmapCache mCache = new MemoryCache();
+    private ImageCache mImageCache = new MemoryCache();
 
     private ImageLoaderConfig mConfig;
 
@@ -43,29 +43,33 @@ public class ImageLoader {
 
     public void init(ImageLoaderConfig config) {
         mConfig = config;
-        mCache = mConfig.bigmapCache;
+        mCache = mConfig.bitmapCache;
         checkConfig();
         mImageQueue = new RequestQueue(mConfig.threadCount);
         mImageQueue.start();
     }
 
-    //TODO:省略的代码
+    //线程池
+    ExecutorService mExeService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
 
-    public void displayImage(ImageView imageView, String url) {
-        displayImage(imageView, url, null, null);
-    }
+    Handler mUiHandler = new Handler(Looper.getMainLooper());
 
-    public void displayImage(ImageView imageView, String url, ImageListener listener) {
-        displayImage(imageView, url, null, listener);
-    }
+    /* 先注释，后面看情况改或删除，此段代码来自"单例模式"章节
+        public void displayImage(ImageView imageView, String url) {
+            displayImage(imageView, url, null, null);
+        }
 
-    public void displayImage(final ImageView imageView, final String url, final DisplayConfig config, final ImageListener listener) {
-        BitmapRequest request = new BitmapRequest(imageView, url, config, listener);
-        request.displayConfig = request.displayConfig != null ? request.displayConfig : mConfig.displayConfig;
+        public void displayImage(ImageView imageView, String url, ImageListener listener) {
+            displayImage(imageView, url, null, listener);
+        }
 
-        mImageQueue.addRequest(request)
-    }
+        public void displayImage(final ImageView imageView, final String url, final DisplayConfig config, final ImageListener listener) {
+            BitmapRequest request = new BitmapRequest(imageView, url, config, listener);
+            request.displayConfig = request.displayConfig != null ? request.displayConfig : mConfig.displayConfig;
 
+            mImageQueue.addRequest(request)
+        }
+    */
     public void stop() {
         mImageQueue.stop();
     }
@@ -74,36 +78,28 @@ public class ImageLoader {
         public void onComplete(ImageView imageView, Bitmap bitmap, String url);
     }
 
-    //TODO:下面代码要修改，上面代码是单例的使用形式
-    //线程池
-    ExecutorService mExeService = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
-
-    Handler mUiHandler = new Handler(Looper.getMainLooper());
-
-
-    public void setImageCache(ImageCache cache) {
-        mImageCache = cache;
-    }
 
     public void displayImage(final String imageUrl, final ImageView imageView) {
         Bitmap bitmap = mImageCache.get(imageUrl);
-
         if (bitmap != null) {
             imageView.setImageBitmap(bitmap);
+            return;
         }
 
         //缓存中没有，则下载
         submitLoadReqest(imageUrl, imageView);
-
     }
 
     private void submitLoadReqest(final String imageUrl, final ImageView imageView) {
+        imageView.setImageResource(mLoadingImageId);
         imageView.setTag(imageUrl);
+
         mExeService.submit(new Runnable() {
             @Override
             public void run() {
                 Bitmap bitmap = downloadImage(imageUrl);
                 if (bitmap == null) {
+                    imageView.setImageResource(mLoadingFailedImageId);
                     return;
                 }
 
