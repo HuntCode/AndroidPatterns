@@ -43,10 +43,14 @@ public class ImageLoader {
 
     public void init(ImageLoaderConfig config) {
         mConfig = config;
-        mCache = mConfig.bitmapCache;
+        mImageCache = mConfig.imageCache;
         checkConfig();
         mImageQueue = new RequestQueue(mConfig.threadCount);
         mImageQueue.start();
+    }
+
+    private void checkConfig() {
+        //检查配置项
     }
 
     //线程池
@@ -66,6 +70,9 @@ public class ImageLoader {
         public void displayImage(final ImageView imageView, final String url, final DisplayConfig config, final ImageListener listener) {
             BitmapRequest request = new BitmapRequest(imageView, url, config, listener);
             request.displayConfig = request.displayConfig != null ? request.displayConfig : mConfig.displayConfig;
+
+            //设置加载策略
+            request.setLoadPolicy(mConfig.loadPolicy);
 
             mImageQueue.addRequest(request)
         }
